@@ -13,17 +13,14 @@ using Newtonsoft.Json.Serialization;
 
 namespace NotifySlackOfWebMeeting.Apis
 {
-    /// <summary>
-    /// Web会議情報API
-    /// </summary>
-    public static class WebMeetings
+    public static class SlackChannels
     {
-        [FunctionName("WebMeetings")]
+        [FunctionName("SlackChannels")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
             [CosmosDB(
                 databaseName: "notify-slack-of-web-meeting-db",
-                collectionName: "WebMeetings",
+                collectionName: "SlackChannels",
                 ConnectionStringSetting = "CosmosDbConnectionString")]IAsyncCollector<dynamic> documentsOut,
             ILogger log)
         {
@@ -45,19 +42,17 @@ namespace NotifySlackOfWebMeeting.Apis
                         dynamic data = JsonConvert.DeserializeObject(requestBody);
 
                         // エンティティに設定
-                        var webMeeting = new WebMeeting();
-                        webMeeting.Name = data?.name;
-                        webMeeting.StartDateTime = data?.startDateTime ?? DateTime.MinValue;
-                        webMeeting.Url = data?.url;
-                        webMeeting.RegisteredBy = data?.registeredBy;
-                        webMeeting.SlackChannelId = data?.slackChannelId;
+                        SlackChannel slackChannel = new SlackChannel();
+                        slackChannel.Name = data?.name;
+                        slackChannel.WebhookUrl = data?.WebhookUrl;
+                        slackChannel.RegisteredBy = data?.registeredBy;
 
                         // 入力値チェックを行う
-                        var validator = new WebMeetingValidator();
-                        validator.ValidateAndThrow(webMeeting);
+                        var validator = new SlackChannelValidator();
+                        validator.ValidateAndThrow(slackChannel);
 
                         // Web会議情報を登録
-                        message = await AddWebMetting(documentsOut, webMeeting);
+                        message = await AddSlackChannel(documentsOut, slackChannel);
 
                         break;
                     default:
@@ -73,18 +68,18 @@ namespace NotifySlackOfWebMeeting.Apis
         }
 
         /// <summary>
-        /// Web会議情報を追加する
+        /// Slackチャンネル情報を追加する
         /// </summary>
         /// <param name="documentsOut">CosmosDBのドキュメント</param>
-        /// <param name="webMeeting">Web会議情報</param>
-        /// <returns>追加したWeb会議情報の文字列</returns>
-        private static async Task<string> AddWebMetting(
+        /// <param name="slackChannel">Slackチャンネル情報</param>
+        /// <returns></returns>
+        private static async Task<string> AddSlackChannel(
             IAsyncCollector<dynamic> documentsOut,
-            WebMeeting webMeeting)
+            SlackChannel slackChannel)
         {
             // 登録日時にUTCでの現在日時を設定
-            webMeeting.RegisteredAt = DateTime.UtcNow;
-            string documentItem = JsonConvert.SerializeObject(webMeeting, new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() });
+            slackChannel.RegisteredAt = DateTime.UtcNow;
+            string documentItem = JsonConvert.SerializeObject(slackChannel, new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() });
             await documentsOut.AddAsync(documentItem);
             return documentItem;
         }
