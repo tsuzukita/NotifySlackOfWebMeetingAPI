@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using System.Linq.Expressions;
+using System.Collections.Generic;
 using LinqKit;
 using NotifySlackOfWebMeeting.Apis.Entities;
 
@@ -25,6 +27,16 @@ namespace NotifySlackOfWebMeeting.Apis.Queries
         #endregion
 
         #region プロパティ
+
+        /// <summary>
+        /// 一意とするID一覧(カンマ区切り)
+        /// </summary>
+        public string Ids { get; set; }
+
+        /// <summary>
+        /// 一意とするID一覧
+        /// </summary>
+        public IEnumerable<string> IdValues => Ids.Split(",").Select(id => id.Trim());
 
         /// <summary>
         /// Web会議の日付範囲の開始日(ISO8601形式の文字列)
@@ -73,6 +85,12 @@ namespace NotifySlackOfWebMeeting.Apis.Queries
         /// 通知先のSlackチャンネル
         /// </summary>
         public string SlackChannelId { get; set; }
+
+        /// <summary>
+        /// Id一覧が指定されているか
+        /// </summary>
+        /// <returns></returns>
+        public bool HasIds => !string.IsNullOrEmpty(Ids) && Ids.Split(",").Any();
 
         /// <summary>
         /// Web会議の日付範囲の開始日が指定されているか
@@ -157,6 +175,10 @@ namespace NotifySlackOfWebMeeting.Apis.Queries
             if (this.HasToDate)
             {
                 expr = expr.And(w => w.Date <= this.ToDateUtcValue);
+            }
+            if(this.HasIds)
+            {
+                expr = expr.And(s => this.IdValues.Contains(s.Id));
             }
             if (expr == original)
             {

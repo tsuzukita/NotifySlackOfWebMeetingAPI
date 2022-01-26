@@ -64,5 +64,12 @@ namespace NotifySlackOfWebMeeting.Apis.Entities
         /// </summary>
         [JsonProperty("slackChannelId")]
         public string SlackChannelId { get; set; }
+        
+        /// <summary>
+        /// Web会議の日付(Unix時刻(秒))
+        /// </summary>
+        /// <returns></returns>
+        [JsonIgnore]
+        public long DateUnixTimeSeconds => new DateTimeOffset(Date).ToUnixTimeSeconds();
     }
 }

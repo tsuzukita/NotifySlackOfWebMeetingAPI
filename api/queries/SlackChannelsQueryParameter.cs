@@ -1,5 +1,7 @@
 using System;
 using System.Linq.Expressions;
+using System.Linq;
+using System.Collections.Generic;
 using LinqKit;
 using NotifySlackOfWebMeeting.Apis.Entities;
 
@@ -11,11 +13,16 @@ namespace NotifySlackOfWebMeeting.Apis.Queries
     public class SlackChannelsQueryParameter
     {
         #region プロパティ
-        
+
         /// <summary>
-        /// 一意とするID
+        /// 一意とするID一覧(カンマ区切り)
         /// </summary>
-        public string Id { get; set; }
+        public string Ids { get; set; }
+
+        /// <summary>
+        /// 一意とするID一覧
+        /// </summary>
+        public IEnumerable<string> IdValues => Ids.Split(",").Select(id => id.Trim());
 
         /// <summary>
         /// Slackチャンネル名
@@ -33,12 +40,11 @@ namespace NotifySlackOfWebMeeting.Apis.Queries
         public string RegisteredBy { get; set; }
 
         /// <summary>
-        /// Idが指定されているか
+        /// ID一覧が指定されているか
         /// </summary>
-        public bool HasId {
-            get {
-                return !string.IsNullOrEmpty(Id);
-            }
+        public bool HasIds
+        {
+            get => !string.IsNullOrEmpty(Ids) && Ids.Split(",").Any();
         }
 
         /// <summary>
@@ -81,9 +87,9 @@ namespace NotifySlackOfWebMeeting.Apis.Queries
             // パラメータに指定された項目をAND条件で結合する。
             Expression<Func<SlackChannel, bool>> expr = PredicateBuilder.New<SlackChannel>(true);
             var original = expr;
-            if (this.HasId)
+            if (this.HasIds)
             {
-                expr = expr.And(s => s.Id == this.Id);
+                expr = expr.And(s => this.IdValues.Contains(s.Id));
             }
             if (this.HasName)
             {

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using NotifySlackOfWebMeeting.Apis.Entities;
 using NotifySlackOfWebMeeting.Apis.Queries;
+using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.Documents.Linq;
 using FluentValidation;
@@ -18,6 +19,9 @@ using Newtonsoft.Json.Serialization;
 
 namespace NotifySlackOfWebMeeting.Apis
 {
+    /// <summary>
+    /// Slackチャンネルの取得・追加をするためのファンクションを定義するクラス
+    /// </summary>
     public static class SlackChannels
     {
         /// <summary>
@@ -25,7 +29,7 @@ namespace NotifySlackOfWebMeeting.Apis
         /// </summary>
         /// <returns>登録したSlackチャンネル情報</returns>
         [FunctionName("AddSlackChannels")]
-        public static async Task<IActionResult> Run(
+        public static async Task<IActionResult> AddSlackChannels(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "SlackChannels")] HttpRequest req,
             [CosmosDB(
                 databaseName: "notify-slack-of-web-meeting-db",
@@ -95,14 +99,86 @@ namespace NotifySlackOfWebMeeting.Apis
                 // クエリパラメータから検索条件パラメータを設定
                 SlackChannelsQueryParameter queryParameter = new SlackChannelsQueryParameter()
                 {
-                    Id = req.Query["id"],
+                    Ids = req.Query["ids"],
                     Name = req.Query["name"],
                     WebhookUrl = req.Query["webhookUrl"],
                     RegisteredBy = req.Query["registeredBy"]
                 };
 
                 // Slackチャンネル情報を取得
-                message = await GetSlackChannels(client, queryParameter, log);
+                message = JsonConvert.SerializeObject(await GetSlackChannels(client, queryParameter, log));
+            }
+            catch (Exception ex)
+            {
+                return new BadRequestObjectResult(ex);
+            }
+
+            return new OkObjectResult($"This HTTP triggered function executed successfully.\n{message}");
+        }
+
+        /// <summary>
+        /// Slackチャンネル情報を取得する。
+        /// </summary>
+        /// <param name="req">HTTPリクエスト</param>
+        /// <param name="client">CosmosDBのドキュメントクライアント</param>
+        /// <param name="log">ロガー</param>
+        /// <returns>Slackチャンネル情報</returns>
+        [FunctionName("GetSlackChannelById")]
+        public static IActionResult GetSlackChannelById(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "SlackChannels/{id}")] HttpRequest req,
+            [CosmosDB(
+                databaseName: "notify-slack-of-web-meeting-db",
+                collectionName: "SlackChannels",
+                ConnectionStringSetting = "CosmosDbConnectionString",
+                Id = "{id}", PartitionKey = "{id}")
+                ]SlackChannel slackChannel,
+            ILogger log)
+        {
+            string id = req.RouteValues["id"].ToString();
+            log.LogInformation($"GET slackChannels/{id}");
+
+            if (slackChannel == null)
+            {
+                return new NotFoundObjectResult($"Target item not found. Id={id}");
+            }
+
+            return new OkObjectResult($"This HTTP triggered function executed successfully.\n{JsonConvert.SerializeObject(slackChannel)}");
+        }
+
+        /// <summary>
+        /// Slackチャンネル情報を削除する。
+        /// </summary>
+        /// <param name="req">HTTPリクエスト</param>
+        /// <param name="client">CosmosDBのドキュメントクライアント</param>
+        /// <param name="log">ロガー</param>
+        /// <returns>削除したSlackチャンネル情報</returns>
+        [FunctionName("DeleteSlackChannelById")]
+        public static async Task<IActionResult> DeleteSlackChannelById(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "SlackChannels/{id}")] HttpRequest req,
+            [CosmosDB(
+                databaseName: "notify-slack-of-web-meeting-db",
+                collectionName: "SlackChannels",
+                ConnectionStringSetting = "CosmosDbConnectionString")
+                ]DocumentClient client,
+            ILogger log)
+        {
+            log.LogInformation("C# HTTP trigger function processed a request.");
+            string message = string.Empty;
+
+            try
+            {
+                string id = req.RouteValues["id"].ToString();
+                log.LogInformation($"DELETE slackChannels/{id}");
+
+                // Slackチャンネル情報を削除
+                var documentItems = await DeleteSlackChannelById(client, id, log);
+
+                if(!documentItems.Any())
+                {
+                    return new NotFoundObjectResult($"Target item not found. Id={id}");
+                }
+                message = JsonConvert.SerializeObject(documentItems);
+
             }
             catch (Exception ex)
             {
@@ -118,7 +194,7 @@ namespace NotifySlackOfWebMeeting.Apis
         /// <param name="documentsOut">CosmosDBのドキュメント</param>
         /// <param name="slackChannel">Slackチャンネル情報</param>
         /// <returns></returns>
-        private static async Task<string> AddSlackChannel(
+        internal static async Task<string> AddSlackChannel(
             IAsyncCollector<dynamic> documentsOut,
             SlackChannel slackChannel)
         {
@@ -129,14 +205,14 @@ namespace NotifySlackOfWebMeeting.Apis
             return documentItem;
         }
 
-                /// <summary>
+        /// <summary>
         /// Slackチャンネル情報一覧を取得する。
         /// </summary>
         /// <param name="client">CosmosDBのドキュメントクライアント</param>
         /// <param name="queryParameter">抽出条件パラメータ</param>
         /// <param name="log">ロガー</param>
         /// <returns>Slackチャンネル情報一覧</returns>
-        private static async Task<string> GetSlackChannels(
+        internal static async Task<IEnumerable<SlackChannel>> GetSlackChannels(
                    DocumentClient client,
                    SlackChannelsQueryParameter queryParameter,
                    ILogger log
@@ -156,8 +232,40 @@ namespace NotifySlackOfWebMeeting.Apis
                     documentItems.Add(documentItem);
                 }
             }
-            log.LogInformation(query.ToString());
-            return JsonConvert.SerializeObject(documentItems);
+            return documentItems;
+        }
+
+        /// <summary>
+        /// Slackチャンネル情報を削除する。
+        /// </summary>
+        /// <param name="client">CosmosDBのドキュメントクライアント</param>
+        /// <param name="ids">削除するSlackチャンネル情報のID</param>
+        /// <param name="log">ロガー</param>
+        /// <returns>削除したSlackチャンネル情報</returns>
+        private static async Task<IEnumerable<SlackChannel>> DeleteSlackChannelById(
+                   DocumentClient client,
+                   string ids,
+                   ILogger log)
+        {
+            // 事前に存在確認後に削除
+
+            // クエリパラメータに削除するSlackチャンネル情報のIDを設定
+            SlackChannelsQueryParameter queryParameter = new SlackChannelsQueryParameter()
+            {
+                Ids = ids,
+            };
+
+            // Slackチャンネル情報を取得
+            var documentItems = await GetSlackChannels(client, queryParameter, log);
+            foreach (var documentItem in documentItems)
+            {
+                // Slackチャンネル情報を削除
+                // Delete a JSON document from the container.
+                Uri documentUri = UriFactory.CreateDocumentUri("notify-slack-of-web-meeting-db", "SlackChannels", documentItem.Id);
+                await client.DeleteDocumentAsync(documentUri, new RequestOptions() { PartitionKey = new PartitionKey(documentItem.Id) });
+            }
+
+            return documentItems;
         }
     }
 }
