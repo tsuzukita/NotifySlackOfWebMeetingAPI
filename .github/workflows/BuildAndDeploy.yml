@@ -1,0 +1,54 @@
+name: Build and deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ 'api/**' ]
+  pull_request:
+    branches: [ main ]
+    paths: [ 'api/**' ]
+
+# 環境にあわせて修正してください。
+env:
+  # ソースファイルのあるフォルダ
+  SOURCE_FOLDER: api
+  AZURE_WEBAPP_NAME: NotifySlackOfWebMeeting-ttsuzuki    # set this to your application's name
+  AZURE_WEBAPP_PACKAGE_PATH: 'output'      # set this to the path to your web app project, defaults to the repository root
+  DOTNET_VERSION: '3.1.x'           # set this to the dot net version to use
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: ${{env.SOURCE_FOLDER}}
+
+    - name: Build
+      run: dotnet build ${{env.SOURCE_FOLDER}} --no-restore
+
+    - name: Test
+      run: dotnet test ${{env.SOURCE_FOLDER}} --no-build --verbosity normal
+
+    - name: Release build and publish
+      run: |
+        dotnet build --configuration Release
+        dotnet publish -c Release -o '../${{ env.AZURE_WEBAPP_PACKAGE_PATH }}' 
+      working-directory: ${{env.SOURCE_FOLDER}}
+
+    - name: 'Run Azure Functions deploy action using publish profile credentials'
+      uses: Azure/functions-action@v1
+      with: 
+        app-name: ${{ env.AZURE_WEBAPP_NAME }} # Replace with your app name
+        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }} # Define secret variable in repository settings as per action documentation
+        package: './${{ env.AZURE_WEBAPP_PACKAGE_PATH }}'
