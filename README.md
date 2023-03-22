@@ -8,9 +8,13 @@
 
 * テレワークが増え会議も Web 会議が主流となり、毎日、Web 会議の URL を Outlook から参照する手間が増えました。
 * そこで、今日、予定されている Web 会議を毎朝 Slack で確認できるよう、本サービスでは以下の機能を提供します。
+  * システムを利用できるユーザーの管理
   * Web会議情報を登録・検索・削除する REST API
   * 通知先のSlackチャンネル情報を登録・検索・削除する REST API
   * 朝9時に当日のWeb会議情報を指定の Slack チャンネルに通知する定期バッチ
+* システムを利用できるユーザーを管理するためのWebアプリを下記リポジトリで提供しており、システムを構築する代表者がシステムを利用できるユーザーを登録し、複数ユーザーにまとめて利用してもらうことができます。
+  * [Notify Slack of web meeting Admin](https://github.com/tsuzukita/NotifySlackOfWebMeetingAdmin)
+    * https://github.com/tsuzukita/NotifySlackOfWebMeetingAdmin
 * Web会議情報や通知先の Slack チャンネル情報の登録などは自由にクライアントを用意することで、 Outlook や Google カレンダーなど好みの予定表から Web 会議情報を抽出し、指定した Slack チャンネルに通知することが可能です。
   * Outlook クライアントからログインユーザーの翌日の Web 会議情報を登録するコンソールアプリは下記リポジトリで提供しており、 Windows タスクスケジューラで毎日実行するよう登録することで、自動的に毎朝9時に当日の Web 会議情報を Slack で確認できます。
     * [Notify Slack of web meeting CLI](https://github.com/tsuzukita/NotifySlackOfWebMeetingAPICLI)
@@ -18,7 +22,6 @@
 
 ### システム全体構成
 ![image](https://user-images.githubusercontent.com/45925612/220557788-1504211f-82ac-404c-9f38-e2cedcd64c46.png)
-
 
 ### 機能説明
 #### REST APIの呼び出しに必要なヘッダ設定
@@ -243,16 +246,18 @@ Visual Studio Code で、ビルドと Azure Functions への発行ができる�
     * https://docs.microsoft.com/ja-jp/azure/azure-functions/create-first-function-vs-code-csharp?tabs=in-process
 
 ### ビルド＆デプロイ
-1. `gir clone ・・・` などで本プロジェクトをローカルに取得し、 Visual Studio Code で開く。
-2. ビルドできるよう、[依存パッケージ](依存パッケージ)を .NET CLI のコマンド `dotnet add package ・・・` で導入する。
-3. `dotnet build` で、ビルドが成功することを確認する。
-4. 以下の Microsoft Docs を参考に、Azure Cosmos DB への接続情報をアプリの設定に追加する。
+1. ユーザー管理Webアプリを先にデプロイし、API呼び出しに必要なREST APIの呼び出しに必要なヘッダ情報を取得できる状態にする
+    * ユーザー管理アプリ「Notify Slack of web meeting Admin」
+3. `gir clone ・・・` などで本プロジェクトをローカルに取得し、 Visual Studio Code で開く。
+4. ビルドできるよう、[依存パッケージ](依存パッケージ)を .NET CLI のコマンド `dotnet add package ・・・` で導入する。
+5. `dotnet build` で、ビルドが成功することを確認する。
+6. 以下の Microsoft Docs を参考に、Azure Cosmos DB への接続情報をアプリの設定に追加する。
     * 関数アプリの設定を更新する
       * https://docs.microsoft.com/ja-jp/azure/azure-functions/functions-add-output-binding-cosmos-db-vs-code?pivots=programming-language-csharp&tabs=in-process#update-your-function-app-settings
-5. 以下の Microsoft Docs を参考に、Azure にプロジェクトを発行（デプロイ）する。
+7. 以下の Microsoft Docs を参考に、Azure にプロジェクトを発行（デプロイ）する。
     * Azure にプロジェクトを発行する
       * https://docs.microsoft.com/ja-jp/azure/azure-functions/create-first-function-vs-code-csharp?tabs=in-process#publish-the-project-to-azure
-6. 日本時間で動作させるために Azure Functions のアプリケーション設定に以下を追加する。
+8. 日本時間で動作させるために Azure Functions のアプリケーション設定に以下を追加する。
     |名前|値|
     |:--|:--|
     |WEBSITE_TIME_ZONE|Tokyo Standard Time|
