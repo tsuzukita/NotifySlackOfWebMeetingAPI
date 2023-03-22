@@ -13,8 +13,8 @@
   * 朝9時に当日のWeb会議情報を指定の Slack チャンネルに通知する定期バッチ
 * Web会議情報や通知先の Slack チャンネル情報の登録などは自由にクライアントを用意することで、 Outlook や Google カレンダーなど好みの予定表から Web 会議情報を抽出し、指定した Slack チャンネルに通知することが可能です。
   * Outlook クライアントからログインユーザーの翌日の Web 会議情報を登録するコンソールアプリは下記リポジトリで提供しており、 Windows タスクスケジューラで毎日実行するよう登録することで、自動的に毎朝9時に当日の Web 会議情報を Slack で確認できます。
-    * [Notify Slack of web meeting CLI](https://github.com/yamadakou/notify-slack-of-web-meeting.cli)
-      * https://github.com/yamadakou/notify-slack-of-web-meeting.cli
+    * [Notify Slack of web meeting CLI](https://github.com/tsuzukita/NotifySlackOfWebMeetingAPICLI)
+      * https://github.com/tsuzukita/NotifySlackOfWebMeetingAPICLI
 
 ### システム全体構成
 ![image](https://user-images.githubusercontent.com/45925612/220557788-1504211f-82ac-404c-9f38-e2cedcd64c46.png)
@@ -23,9 +23,10 @@
 ### 機能説明
 #### REST APIの呼び出しに必要なヘッダ設定
 REST APIの呼び出しには以下のヘッダ情報が必要です。
-    |ヘッダ名|説明|
-    |:--|:--|
-    |x-nsw-email-address||
+|ヘッダ名|説明|
+|:--|:--|
+|x-nsw-email-address|Eメールアドレス※1|
+|x-nsw-auth-key|認証キー※2|
 ####  Web会議情報を登録・検索・削除する REST API
 * Web会議情報を登録
   ```js
